@@ -17,14 +17,13 @@
   - Pure HTML5/Canvas + Web Audio API  
 
 ## 🛠️ How It Works  
-```mermaid
 graph LR
   A[Microphone Input] --> B[Web Audio API]
   B --> C[Frequency Analysis]
   C --> D[Canvas Rendering]
   D --> E[Kaleidoscope Mirroring]
 
-Installation
+🚀 Installation
 Clone the repo: git clone https://github.com/AvipshaSwain/Sonic-Symmetry.git
 
 Open index.html in any modern browser
