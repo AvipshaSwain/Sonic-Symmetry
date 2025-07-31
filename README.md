@@ -1,8 +1,6 @@
 # Sonic Symmetry 🌀  
 #### Voice-Controlled Generative Art  
 
-![Demo Preview](https://avipshaswain.github.io/Sonic-Symmetry/assets/preview.png)  
-*Example patterns generated with voice input*
 
 ## 🌟 Live Demo  
 [Try it here!](https://avipshaswain.github.io/Sonic-Symmetry/)  
