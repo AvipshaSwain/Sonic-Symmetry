@@ -24,7 +24,7 @@ graph LR
   C --> D[Canvas Rendering]
   D --> E[Kaleidoscope Mirroring]
 
-🚀 Installation
+Installation
 Clone the repo: git clone https://github.com/AvipshaSwain/Sonic-Symmetry.git
 
 Open index.html in any modern browser
