@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Perfect Kaleidoscope</title>
+  <style>
+    body { 
+      margin: 0; 
+      overflow: hidden; 
+      background: #000;
+      font-family: Arial, sans-serif;
+    }
+    canvas { 
+      display: block; 
+      width: 100vw;
+      height: 100vh;
+    }
+    #controls {
+      position: fixed;
+      bottom: 20px;
+      left: 0;
+      right: 0;
+      display: none; /* Hidden until started */
+      justify-content: center;
+      gap: 15px;
+    }
+    button {
+      background: white;
+      color: black;
+      border: none;
+      padding: 12px 24px;
+      border-radius: 24px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+    }
+    #status {
+      position: fixed;
+      top: 20px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      color: white;
+      padding: 10px;
+    }
+    #start-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 100;
+    }
+    #start-button {
+      padding: 18px 36px;
+      font-size: 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 36px;
+      cursor: pointer;
+      font-weight: bold;
+      margin-bottom: 20px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    #instructions {
+      color: #aaa;
+      text-align: center;
+      max-width: 80%;
+      margin-top: 20px;
+    }
+    .error {
+      color: #FF6B6B;
+    }
+  </style>
+</head>
+<body>
+  <div id="start-screen">
+    <button id="start-button">START KALEIDOSCOPE</button>
+    <div id="instructions">Allow microphone access when prompted</div>
+  </div>
+  <canvas id="canvas"></canvas>
+  <div id="status">Click START to begin</div>
+  <div id="controls">
+    <button id="clearBtn">Clear Canvas</button>
+    <button id="captureBtn">Save Image</button>
+  </div>
+
+  <script>
+    // ======================
+    // 1. ELEMENT REFERENCES
+    // ======================
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const startScreen = document.getElementById('start-screen');
+    const startButton = document.getElementById('start-button');
+    const controls = document.getElementById('controls');
+    const statusEl = document.getElementById('status');
+    const instructions = document.getElementById('instructions');
+
+    // ======================
+    // 2. CANVAS SETUP
+    // ======================
+    let width, height;
+    function resizeCanvas() {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // ======================
+    // 3. DESIGN PARAMETERS
+    // ======================
+    const SEGMENTS = 8;
+    let shapes = [];
+    let currentColor = 0;
+
+    // ======================
+    // 4. SHAPE FUNCTIONS
+    // ======================
+    function clearCanvas() {
+      shapes = [];
+      ctx.fillStyle = 'black';
+      ctx.fillRect(0, 0, width, height);
+    }
+
+    function generateShapePoints(sides) {
+      const points = [];
+      for (let i = 0; i < sides; i++) {
+        const angle = (Math.PI * 2) * (i / sides);
+        points.push({
+          x: Math.cos(angle),
+          y: Math.sin(angle)
+        });
+      }
+      return points;
+    }
+
+    function addShape(volume) {
+      const size = 50 + (volume * 1.5); // Volume controls size
+      const complexity = 3 + Math.floor(volume / 30); // Volume adds complexity
+      
+      shapes.push({
+        points: generateShapePoints(complexity),
+        size: Math.min(size, 400), // Limit maximum size
+        color: `hsl(${currentColor}, 100%, 50%)`,
+        x: width/2,
+        y: height/2
+      });
+      
+      currentColor = (currentColor + 15) % 360;
+      drawShape(shapes[shapes.length-1]);
+    }
+
+    function drawShape(shape) {
+      const centerX = shape.x;
+      const centerY = shape.y;
+      const segmentAngle = (Math.PI * 2) / SEGMENTS;
+      const scale = shape.size;
+      
+      ctx.save();
+      ctx.translate(centerX, centerY);
+      
+      for (let i = 0; i < SEGMENTS; i++) {
+        ctx.rotate(segmentAngle);
+        ctx.save();
+        ctx.scale(1, -1);
+        
+        ctx.strokeStyle = shape.color;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        
+        shape.points.forEach((point, idx) => {
+          const x = point.x * scale;
+          const y = point.y * scale;
+          
+          if (idx === 0) {
+            ctx.moveTo(x, y);
+          } else {
+            ctx.lineTo(x, y);
+          }
+        });
+        
+        ctx.closePath();
+        ctx.stroke();
+        ctx.restore();
+      }
+      
+      ctx.restore();
+    }
+
+    // ======================
+    // 5. AUDIO FUNCTIONS
+    // ======================
+    let audioContext, analyser, microphone;
+    let isRunning = false;
+
+    function startAudio() {
+      // 1. Change button to show loading state
+      startButton.textContent = "Loading...";
+      startButton.disabled = true;
+      
+      // 2. Initialize audio context
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 256;
+      
+      // 3. Request microphone access
+      navigator.mediaDevices.getUserMedia({ audio: true })
+        .then(stream => {
+          // Success! Microphone access granted
+          microphone = audioContext.createMediaStreamSource(stream);
+          microphone.connect(analyser);
+          
+          // Update UI
+          startScreen.style.display = 'none';
+          controls.style.display = 'flex';
+          statusEl.textContent = "Speak to create designs";
+          
+          // Start animation
+          isRunning = true;
+          clearCanvas();
+          animate();
+        })
+        .catch(err => {
+          // Handle microphone access denied
+          console.error("Microphone error:", err);
+          statusEl.textContent = "Microphone access required";
+          statusEl.classList.add('error');
+          instructions.textContent = "Please refresh and allow microphone access";
+          startButton.textContent = "Try Again";
+          startButton.disabled = false;
+        });
+    }
+
+    function animate() {
+      if (!isRunning) return;
+      
+      // Analyze microphone volume
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+      analyser.getByteFrequencyData(dataArray);
+      const volume = dataArray.reduce((a, b) => a + b) / dataArray.length;
+      
+      // Add new shape when speaking
+      if (volume > 20) {
+        addShape(volume);
+      }
+      
+      requestAnimationFrame(animate);
+    }
+
+    // ======================
+    // 6. EVENT LISTENERS
+    // ======================
+    startButton.addEventListener('click', startAudio);
+    document.getElementById('clearBtn').addEventListener('click', clearCanvas);
+    document.getElementById('captureBtn').addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'kaleidoscope-' + new Date().toISOString().slice(0, 10) + '.png';
+      link.href = canvas.toDataURL();
+      link.click();
+    });
+  </script>
+</body>
+</html>
